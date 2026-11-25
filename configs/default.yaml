@@ -1,0 +1,21 @@
+# sn1ff3r default configuration
+# Every value here matches the tool's built-in defaults -- this file is a
+# starting template to copy and adjust per vehicle/mission, not a required
+# file (the tool runs fine with no --config at all).
+
+max_plausible_speed_mps: 40.0      # gps_spoof_detector: hard speed cap
+gps_zscore_threshold: 4.0          # gps_spoof_detector: adaptive baseline sensitivity
+
+heartbeat_timeout_s: 3.0           # dos_detector: seconds of silence before alerting
+flood_zscore_threshold: 5.0        # dos_detector: message-rate spike sensitivity
+flood_rate_ratio: 3.0            # dos_detector: ...and at least this multiple of baseline
+
+authorized_source_ids: [255]       # command_injection_detector: trusted GCS system IDs
+max_seq_gap: 5                     # command_injection_detector: sequence-gap tolerance
+
+alt_tolerance_m: 15.0              # telemetry_manipulation_detector: GPS/baro disagreement allowed
+
+min_confidence: 0.0                # engine: suppress alerts below this confidence (0.0 = show all)
+
+blackbox_pre_buffer: 200           # black box: messages of pre-attack context retained
+blackbox_post_window_s: 5.0        # black box: seconds of quiet before an incident closes

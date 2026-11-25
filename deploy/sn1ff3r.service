@@ -1,0 +1,41 @@
+# deploy/sn1ff3r.service
+#
+# Runs the IDS as a background service on the companion computer: starts
+# automatically on boot, restarts automatically if it ever crashes, and
+# logs to the system journal (viewable with `journalctl -u sn1ff3r -f`).
+#
+# INSTALL (on the companion computer, after `pip install` has succeeded
+# there -- see INSTALL.md):
+#
+#   1. Edit the ExecStart line below: set --connect to match how your
+#      companion computer actually talks to the flight controller (a
+#      real serial port, not the SITL udpin used for desktop testing),
+#      e.g.  --connect /dev/ttyUSB0 --baud 921600
+#      and set --config to the vehicle profile file you want, e.g.
+#      /home/pi/sn1ff3r/configs/survey_multirotor.yaml
+#
+#   2. Copy this file into place and enable it:
+#        sudo cp deploy/sn1ff3r.service /etc/systemd/system/
+#        sudo systemctl daemon-reload
+#        sudo systemctl enable --now sn1ff3r
+#
+#   3. Check it's running and watch live logs:
+#        sudo systemctl status sn1ff3r
+#        journalctl -u sn1ff3r -f
+
+[Unit]
+Description=SN1FF3R - MAVLink intrusion detection
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/sn1ff3r
+ExecStart=/home/pi/sn1ff3r/.venv/bin/sn1ff3r run --connect udpin:127.0.0.1:14550 --config /home/pi/sn1ff3r/configs/default.yaml --alert-log /home/pi/sn1ff3r/ids_alerts.jsonl --blackbox-dir /home/pi/sn1ff3r/forensic_snapshots
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SN1FF3R</title>
+<style>
+:root {
+  color-scheme: dark;
+  --window: #1e1e20;
+  --sidebar: #252527;
+  --surface: #2a2a2d;
+  --surface-2: #313134;
+  --row-alt: rgba(255,255,255,0.025);
+  --row-hover: rgba(255,255,255,0.05);
+  --selected: #2c4a73;
+  --border: #3a3a3d;
+  --hairline: #333336;
+  --text: #e9e9eb;
+  --text-2: #a9a9ae;
+  --muted: #7d7d83;
+  --good: #5cb56c;
+  --warning: #dea63d;
+  --serious: #df8255;
+  --critical: #e0625f;
+  --accent: #4b8fe0;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --grid: #333336;
+  --axis: #444448;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--window); color: var(--text); font: 14px/1.45 var(--sans); }
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.dim { color: var(--text-2); }
+svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- window frame ---------- */
+.app { display: grid; grid-template-columns: 256px minmax(0, 1fr); height: 100vh; }
+.sidebar { background: var(--sidebar); border-right: 1px solid var(--hairline); display: flex; flex-direction: column; padding: 14px 10px 10px; overflow-y: auto; }
+.app-title { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15px; padding: 2px 8px 14px; }
+.app-title .ver { color: var(--muted); font-weight: 400; font-size: 12px; }
+.side-group { font-size: 11.5px; font-weight: 600; color: var(--muted); padding: 12px 10px 4px; }
+nav { display: flex; flex-direction: column; gap: 1px; }
+nav button, .side-file {
+  display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: 0; border-radius: 6px;
+  padding: 6px 10px; cursor: pointer; color: var(--text); text-align: left;
+}
+nav button:hover, .side-file:hover { background: var(--row-hover); }
+nav button.active { background: var(--selected); }
+nav button .i, .side-file .i { color: var(--text-2); }
+nav button.active .i { color: var(--text); }
+.count { margin-left: auto; color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.count.zero { color: var(--muted); }
+.count.hot { color: var(--text); background: rgba(224,98,95,.25); border-radius: 999px; padding: 0 7px; }
+.side-file { font-size: 13px; color: var(--text-2); }
+.side-file .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+.side-file .fmeta { margin-left: auto; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.side-foot { margin-top: auto; padding: 12px 8px 2px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--hairline); }
+.pill { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; display: inline-block; }
+.dot.good { background: var(--good); } .dot.warning { background: var(--warning); }
+.dot.serious { background: var(--serious); } .dot.critical { background: var(--critical); }
+.dot.soft-pulse { animation: soft 2.4s ease-in-out infinite; }
+@keyframes soft { 50% { opacity: .45; } }
+
+.window { display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+.pathbar { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--hairline); color: var(--text-2); font-size: 13px; flex-wrap: wrap; min-height: 42px; }
+.pathbar .seg { display: inline-flex; align-items: center; gap: 6px; }
+.pathbar .seg.last { color: var(--text); font-weight: 500; }
+.pathbar .sep { color: var(--muted); }
+main { flex: 1; overflow-y: auto; padding: 18px 20px 24px; }
+.statusbar { display: flex; gap: 14px; align-items: center; padding: 6px 20px; border-top: 1px solid var(--hairline); font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.statusbar .right { margin-left: auto; }
+.tab { display: none; max-width: 1400px; } .tab.active { display: block; }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  .window { height: auto; }
+  .sidebar { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px 12px; gap: 4px; border-right: 0; border-bottom: 1px solid var(--hairline); }
+  .app-title { padding: 4px 8px; }
+  .side-group, .side-files { display: none; }
+  nav { flex-direction: row; flex-wrap: wrap; }
+  nav button { width: auto; }
+  .side-foot { margin: 0; border: 0; flex-direction: row; flex-wrap: wrap; padding: 4px 8px; gap: 12px; }
+  main { padding: 14px 16px; }
+  .pathbar, .statusbar { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ---------- panels ---------- */
+.grid { display: grid; gap: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.panel h2 { margin: 0 0 10px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.panel h2 .right { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.panel h2 .i { color: var(--text-2); }
+.hint { color: var(--muted); font-size: 12.5px; margin: -6px 0 10px; }
+
+.banner { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; border-radius: 10px; margin-bottom: 14px; background: var(--surface); border: 1px solid var(--hairline); border-left: 3px solid var(--muted); }
+.banner .icon { width: 26px; height: 26px; flex: none; margin-top: 2px; }
+.banner .title { font-size: 18px; font-weight: 600; }
+.banner .sub { color: var(--text-2); margin-top: 2px; }
+.banner.clear { border-left-color: var(--good); }
+.banner.alert { border-left-color: var(--critical); }
+.banner.idle { border-left-color: var(--muted); }
+
+.overview { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas: "checks checks checks" "rate rate link" "alt alt veh" "recent recent bb"; }
+@media (max-width: 1100px) { .overview { grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas: "checks checks" "rate rate" "alt alt" "link veh" "recent recent" "bb bb"; } }
+@media (max-width: 760px) { .overview { grid-template-columns: minmax(0,1fr);
+  grid-template-areas: "checks" "rate" "alt" "link" "veh" "recent" "bb"; } }
+.a-checks { grid-area: checks; } .a-rate { grid-area: rate; } .a-alt { grid-area: alt; } .a-link { grid-area: link; }
+.a-veh { grid-area: veh; } .a-recent { grid-area: recent; } .a-bb { grid-area: bb; }
+
+/* property list, like a "Get Info" window */
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 13.5px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.big { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+.big .v { font-size: 22px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.big .l { color: var(--muted); font-size: 12px; }
+
+/* ---------- list views ---------- */
+.list { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.list th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--hairline); white-space: nowrap; z-index: 1; }
+.list td { padding: 7px 10px; vertical-align: top; }
+.list tbody tr:nth-child(even) { background: var(--row-alt); }
+.list tbody tr { cursor: pointer; }
+.list tbody tr:hover { background: var(--row-hover); }
+.list tbody tr.sel { background: var(--selected); }
+.list tbody tr.fresh { animation: fresh 2.5s ease-out; }
+@keyframes fresh { from { background: rgba(75,143,224,.28); } to { background: transparent; } }
+.list td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.list td.nowrap, .list th { white-space: nowrap; }
+.list td.reason { min-width: 240px; }
+.list.static tbody tr { cursor: default; }
+.name-cell { display: flex; gap: 9px; align-items: flex-start; }
+.name-cell .i { margin-top: 2px; color: var(--text-2); }
+.sub-date { display: block; font-size: 11px; color: var(--muted); }
+@media (max-width: 900px) { .hide-sm { display: none; } }
+@media (max-width: 760px) {
+  .list td.nowrap { white-space: normal; }
+  .panel h2 { flex-wrap: wrap; }
+  .a-checks { overflow-x: auto; }
+}
+.table-wrap { overflow: auto; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface); max-height: calc(100vh - 250px); }
+
+.imp { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.imp.critical .dot { background: var(--critical); } .imp.serious .dot { background: var(--serious); } .imp.warning .dot { background: var(--warning); }
+.empty { text-align: center; padding: 30px 10px; color: var(--muted); }
+.empty .big-t { font-size: 16px; color: var(--text-2); font-weight: 600; margin-bottom: 4px; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.toolbar input[type=search], .toolbar select, .field input {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; min-width: 0;
+}
+.toolbar input[type=search] { flex: 1 1 240px; }
+.chip { border: 1px solid var(--border); background: transparent; border-radius: 999px; padding: 3px 11px; cursor: pointer; font-size: 12.5px; color: var(--text-2); }
+.chip:hover { background: var(--row-hover); }
+.chip.on { background: var(--selected); border-color: transparent; color: var(--text); }
+.btn { border: 1px solid var(--border); background: var(--surface-2); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 500; }
+.btn:hover:not(:disabled) { background: #3a3a3e; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #5b9be6; }
+.btn.quiet-danger { color: #f0a09e; }
+
+.notice { padding: 10px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--hairline); color: var(--text-2); margin-bottom: 14px; font-size: 13.5px; display: flex; gap: 10px; align-items: flex-start; }
+.notice .i { margin-top: 2px; }
+.notice.warn { border-left: 3px solid var(--warning); }
+code { font-family: var(--mono); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+.drawer { margin-top: 14px; }
+.hash { word-break: break-all; font-size: 12px; font-family: var(--mono); }
+
+/* ---------- charts ---------- */
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: 180px; overflow: visible; }
+.chart .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--text-2); margin-bottom: 6px; flex-wrap: wrap; }
+.chart .legend i { display: inline-block; width: 14px; height: 2px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.chart .legend i.dash { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; }
+.tip { position: absolute; pointer-events: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; font-size: 12px; white-space: nowrap; display: none; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+
+/* ---------- black box: files + preview ---------- */
+.split { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 1200px) { .split { grid-template-columns: 1fr; } }
+.files { background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; }
+.files .head { display: flex; padding: 8px 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--hairline); }
+.inc { display: flex; gap: 10px; padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--hairline); }
+.inc:last-child { border-bottom: 0; }
+.inc:hover { background: var(--row-hover); }
+.inc.sel { background: var(--selected); }
+.inc .doc { width: 28px; height: 34px; flex: none; }
+.inc .t { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inc .s { color: var(--text-2); font-size: 12.5px; margin-top: 1px; }
+.inc .m { color: var(--muted); font-size: 12px; margin-top: 1px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tag { font-size: 11.5px; padding: 0 7px; border-radius: 4px; display: inline-flex; gap: 4px; align-items: center; line-height: 18px; }
+.tag.ok { background: rgba(92,181,108,.16); color: #8fd39b; }
+.tag.bad { background: rgba(224,98,95,.18); color: #f0a09e; }
+.tag.part { background: rgba(222,166,61,.16); color: #e8c27a; }
+.preview-head { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+.preview-head .doc { width: 44px; height: 54px; flex: none; }
+.preview-head .fn { font-family: var(--mono); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.preview-head .fs { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.preview-head .actions { margin-left: auto; }
+.section-title { font-size: 13px; font-weight: 600; margin: 16px 0 8px; display: flex; gap: 8px; align-items: center; }
+.section-title .right { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+
+.bars { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.bar { display: grid; grid-template-columns: minmax(0,210px) 1fr 76px; gap: 10px; align-items: center; }
+.bar .track { height: 8px; display: flex; gap: 2px; }
+.bar .track span { height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; }
+.bar .n { text-align: right; font-family: var(--mono); color: var(--text-2); }
+pre.json { background: var(--window); border: 1px solid var(--hairline); border-radius: 6px; padding: 10px; font: 12px/1.5 var(--mono); overflow: auto; max-height: 340px; margin: 0; color: var(--text-2); white-space: pre-wrap; word-break: break-all; }
+.phase { font-size: 11.5px; padding: 0 6px; border-radius: 4px; }
+.phase.before { background: var(--surface-2); color: var(--text-2); }
+.phase.during { background: rgba(57,135,229,.2); color: #9cc3f2; }
+tr.alerted td:first-child { box-shadow: inset 3px 0 0 var(--critical); }
+.feed { display: flex; flex-direction: column; }
+.feed .row { display: grid; grid-template-columns: 70px 22px minmax(0,1fr); gap: 8px; align-items: baseline; padding: 7px 4px; border-bottom: 1px solid var(--hairline); font-size: 13.5px; }
+.feed .row:last-child { border-bottom: 0; }
+
+/* ---------- attack lab: a list of "scripts" ---------- */
+.scripts { background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; }
+.atk { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--hairline); align-items: start; }
+.atk:last-child { border-bottom: 0; }
+.atk > .i { width: 20px; height: 20px; margin-top: 2px; color: var(--text-2); }
+.atk h3 { margin: 0; font-size: 14.5px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
+.atk .expect { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+.atk p { margin: 6px 0 8px; color: var(--text-2); font-size: 13.5px; max-width: 760px; }
+.atk .running { color: var(--warning); font-weight: 500; font-size: 12.5px; }
+.atk .go { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+@media (max-width: 640px) { .atk { grid-template-columns: 24px minmax(0,1fr); } .atk .go { grid-column: 2; align-items: flex-start; } }
+.fields { display: flex; gap: 12px; flex-wrap: wrap; }
+.field { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.field input { width: 96px; padding: 4px 8px; }
+.atk-bottom { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); margin-top: 14px; }
+@media (max-width: 900px) { .atk-bottom { grid-template-columns: minmax(0,1fr); } }
+.log { font: 12.5px/1.6 var(--mono); max-height: 300px; overflow: auto; }
+.log div { padding: 2px 0; }
+.log .error { color: #f0a09e; }
+.setup ol { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13.5px; }
+.setup li { margin-bottom: 8px; }
+.setup pre { background: var(--window); border: 1px solid var(--hairline); border-radius: 6px; padding: 8px 10px; font: 12.5px/1.5 var(--mono); margin: 6px 0 0; color: var(--text-2); white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="app-title">
+    <svg class="i" viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+    SN1FF3R
+  </div>
+  <div class="side-group">Watching</div>
+  <nav role="tablist">
+    <button data-tab="overview" class="active"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Overview</button>
+    <button data-tab="alerts"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Alerts <span class="count zero" id="alert-count">0</span></button>
+    <button data-tab="blackbox"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg>Flight recorder <span class="count zero" id="bb-count">0</span></button>
+  </nav>
+  <div class="side-group">Testing</div>
+  <nav>
+    <button data-tab="attacks"><svg class="i" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg>Attack lab</button>
+  </nav>
+  <div class="side-group">Files</div>
+  <div class="side-files" id="side-files"></div>
+  <div class="side-foot">
+    <span class="pill" id="link-pill"><span class="dot"></span><span>—</span></span>
+    <span class="pill" id="chain-pill" title="Checks that no alert in the log was edited or removed"><span class="dot"></span><span>—</span></span>
+  </div>
+</aside>
+
+<div class="window">
+<div class="pathbar" id="pathbar"></div>
+<main>
+<!-- ================= OVERVIEW ================= -->
+<section class="tab active" id="tab-overview">
+  <div class="banner idle" id="banner">
+    <div><div class="title">Starting up…</div><div class="sub">Getting ready to listen to your drone.</div></div>
+  </div>
+  <div class="grid overview">
+    <div class="panel a-checks">
+      <h2><svg class="i" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>What it's checking <span class="right">each check looks at every message</span></h2>
+      <div id="detectors"></div>
+    </div>
+    <div class="panel a-rate">
+      <h2><svg class="i" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Message traffic <span class="right">a sudden spike can mean flooding</span></h2>
+      <div class="chart" id="chart-rate"></div>
+    </div>
+    <div class="panel a-link">
+      <h2><svg class="i" viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg>Connection</h2>
+      <div class="big">
+        <div><div class="v" id="l-rate">—</div><div class="l">messages / second</div></div>
+        <div><div class="v" id="l-hb">—</div><div class="l">since last heartbeat</div></div>
+      </div>
+      <dl class="kv" id="link-kv"></dl>
+    </div>
+    <div class="panel a-alt">
+      <h2><svg class="i" viewBox="0 0 24 24"><path d="M12 20V4M6 10l6-6 6 6"/></svg>Altitude, two ways <span class="right">these two lines should overlap</span></h2>
+      <div class="chart" id="chart-alt"></div>
+    </div>
+    <div class="panel a-veh">
+      <h2><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 8l8 8M16 8l-8 8"/></svg>Drone</h2>
+      <div class="big">
+        <div><div class="v" id="v-mode">—</div><div class="l">flight mode</div></div>
+        <div><div class="v" id="v-armed">—</div><div class="l">motors</div></div>
+      </div>
+      <dl class="kv" id="veh-kv"></dl>
+    </div>
+    <div class="panel a-recent">
+      <h2><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Recent activity <span class="right"><a href="#" data-goto="alerts">Open alerts</a></span></h2>
+      <div class="feed" id="recent"></div>
+    </div>
+    <div class="panel a-bb">
+      <h2><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg>Flight recorder</h2>
+      <div id="bb-live"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ALERTS ================= -->
+<section class="tab" id="tab-alerts">
+  <div class="notice warn" id="chain-warning" hidden></div>
+  <div class="toolbar">
+    <input type="search" id="a-search" placeholder="Search alerts…">
+    <select id="a-sev" aria-label="Importance">
+      <option value="">Any importance</option>
+      <option value="critical">High</option>
+      <option value="serious">Medium</option>
+      <option value="warning">Low</option>
+    </select>
+    <label class="dim" style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="a-follow" checked> Newest first</label>
+    <button class="btn" id="a-export">Export as CSV</button>
+  </div>
+  <div class="toolbar" id="a-chips"></div>
+  <div class="table-wrap">
+    <table class="list">
+      <thead><tr><th>Time</th><th>Importance</th><th>Check</th><th>What happened</th><th class="hide-sm">Message</th><th class="hide-sm">From</th><th>Repeats</th><th>Intact</th></tr></thead>
+      <tbody id="a-body"></tbody>
+    </table>
+    <div class="empty" id="a-empty"><div class="big-t">Nothing here yet</div>When something looks wrong, it will be listed here.</div>
+  </div>
+  <div class="panel drawer" id="a-detail" hidden></div>
+</section>
+
+<!-- ================= BLACK BOX ================= -->
+<section class="tab" id="tab-blackbox">
+  <div class="notice" id="bb-rec-notice"></div>
+  <div class="split">
+    <div class="files">
+      <div class="head"><span>Incident files</span><span id="bb-total" style="margin-left:auto"></span></div>
+      <div id="bb-list"></div>
+    </div>
+    <div id="bb-detail" class="panel"><div class="empty"><div class="big-t">No file selected</div>Pick an incident on the left to see what happened.</div></div>
+  </div>
+</section>
+
+<!-- ================= ATTACK LAB ================= -->
+<section class="tab" id="tab-attacks">
+  <div class="notice warn" id="atk-disabled" hidden></div>
+  <div class="notice"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg><span>These are safe, simulated attacks for testing with ArduPilot SITL. Each one tells you which check should notice it.</span></div>
+  <div class="scripts" id="atk-cards"></div>
+  <div class="grid atk-bottom" id="atk-bottom">
+    <div class="panel">
+      <h2><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>Activity <span class="right"><button class="btn quiet-danger" id="atk-stop">Stop everything</button></span></h2>
+      <div class="log" id="atk-log"><div class="muted">Nothing has been run yet.</div></div>
+    </div>
+    <div class="panel setup">
+      <h2><svg class="i" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Getting set up</h2>
+      <ol>
+        <li>Start the simulator with one output for the IDS and one for the test tools:
+          <pre>sim_vehicle.py -v ArduCopter --console --map --out=udp:127.0.0.1:14560 --out=udp:127.0.0.1:14551</pre></li>
+        <li>Start this app on its own port:
+          <pre>sn1ff3r gui --connect udpin:127.0.0.1:14560</pre></li>
+        <li>Take off from the MAVProxy console:
+          <pre>mode guided
+arm throttle
+takeoff 20</pre></li>
+      </ol>
+      <div class="dim" style="font-size:13px;margin-top:6px">GPS spoofing and the settings check use port <code id="sitl-port">14551</code>. Everything else is sent straight to the IDS on <code id="ids-port">—</code> and never reaches the autopilot.</div>
+    </div>
+  </div>
+</section>
+</main>
+<div class="statusbar" id="statusbar"><span id="status-items">—</span><span class="right mono" id="clock">--:--:--</span></div>
+</div>
+</div>
+
+<script>
+"use strict";
+// ------------------------------------------------------------ helpers --
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const hms = t => { if (!t) return "—"; const d = new Date(t * 1000); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const dateTime = t => { if (!t) return "—"; const d = new Date(t * 1000); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${hms(t)}`; };
+const isToday = t => new Date(t * 1000).toDateString() === new Date().toDateString();
+const dayLabel = t => { if (!t) return "—"; const d = new Date(t * 1000); return isToday(t) ? `Today, ${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmt = (v, d = 1, unit = "") => (v === null || v === undefined || Number.isNaN(v)) ? "—" : `${Number(v).toFixed(d)}${unit}`;
+const ago = s => s == null ? "—" : s < 60 ? `${s.toFixed(s < 10 ? 1 : 0)} s` : s < 3600 ? `${Math.floor(s / 60)} min ${Math.floor(s % 60)} s` : `${Math.floor(s / 3600)} h ${Math.floor(s % 3600 / 60)} min`;
+const agoWords = s => s == null ? "never" : s < 10 ? "just now" : s < 60 ? `${Math.floor(s)} seconds ago` : s < 120 ? "a minute ago" : s < 3600 ? `${Math.floor(s / 60)} minutes ago` : s < 7200 ? "an hour ago" : `${Math.floor(s / 3600)} hours ago`;
+const fsize = b => b == null ? "—" : b < 1024 ? `${b} bytes` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`;
+const sevOf = c => c >= 0.8 ? "critical" : c >= 0.6 ? "serious" : "warning";
+const SEV_LABEL = { critical: "High", serious: "Medium", warning: "Low" };
+const sevHtml = c => { const s = sevOf(c); return `<span class="imp ${s}"><span class="dot"></span>${SEV_LABEL[s]}</span>`; };
+const DET = {
+  check_gps_spoof: { name: "GPS Spoofing", short: "GPS", desc: "Is the drone's position believable?" },
+  check_gps_jamming: { name: "GPS Jamming", short: "GPS jam", desc: "Is the GPS signal being blocked?" },
+  check_dos: { name: "Link Jamming / Flooding", short: "Link", desc: "Is the radio link alive and at a normal pace?" },
+  check_command_injection: { name: "Command Injection", short: "Commands", desc: "Are commands coming from someone trusted?" },
+  check_telemetry_consistency: { name: "Telemetry Tampering", short: "Telemetry", desc: "Do the drone's own reports agree with each other?" },
+  check_integrity: { name: "Settings Integrity", short: "Settings", desc: "Have the drone's settings been changed?" },
+};
+const detName = d => (DET[d] && DET[d].name) || d || "?";
+const I = (p, cls = "i") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const ICON = {
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+  folder: '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+  gps: '<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/>',
+  link: '<path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/>',
+  cmd: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>',
+  tele: '<path d="M12 20V4M6 10l6-6 6 6"/>',
+  params: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  jam: '<path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M3 3l18 18"/>',
+  flood: '<path d="M3 8c3-2 6 2 9 0s6 2 9 0M3 14c3-2 6 2 9 0s6 2 9 0"/>',
+};
+const DET_ICON = { check_gps_spoof: ICON.gps, check_gps_jamming: ICON.jam, check_dos: ICON.link, check_command_injection: ICON.cmd, check_telemetry_consistency: ICON.tele, check_integrity: ICON.params };
+const DOC = (color) => `<svg class="doc" viewBox="0 0 28 34" aria-hidden="true"><path d="M3 2h15l7 7v22a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#3a3a3e" stroke="#55555a"/><path d="M18 2v7h7" fill="#48484c" stroke="#55555a"/><rect x="6" y="20" width="16" height="7" rx="1.5" fill="${color}"/><text x="14" y="25.6" font-size="5" text-anchor="middle" fill="#fff" font-family="system-ui" font-weight="700">JSON</text></svg>`;
+async function api(path, body) {
+  const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json", "X-SN1FF3R": "1" }, body: JSON.stringify(body) };
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+// ----------------------------------------------------- tabs + path bar --
+let activeTab = "overview";
+const TAB_TITLE = { overview: "Overview", alerts: "Alerts", blackbox: "Flight recorder", attacks: "Attack lab" };
+function setPath(extra) {
+  const parts = ["SN1FF3R", TAB_TITLE[activeTab]].concat(extra ? [extra] : []);
+  $("#pathbar").innerHTML = parts.map((p, i) => `<span class="seg ${i === parts.length - 1 ? "last" : ""}">${i === 0 ? I(ICON.folder) : ""}${esc(p)}</span>`).join('<span class="sep">›</span>');
+}
+function showTab(name) {
+  activeTab = name;
+  $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  $$(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + name));
+  try { localStorage.setItem("ids-tab", name); } catch (e) {}
+  setPath(name === "blackbox" && selSnap ? selSnap + ".json" : null);
+  if (name === "blackbox") loadBlackbox();
+  if (name === "alerts") renderAlerts();
+}
+$$("nav button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+document.addEventListener("click", e => { const g = e.target.closest("[data-goto]"); if (g) { e.preventDefault(); showTab(g.dataset.goto); } });
+
+// ------------------------------------------------------------- charts --
+// Minimal SVG line chart: one y-axis, 2px lines, quiet grid,
+// crosshair + tooltip on hover.
+function lineChart(el, series, opts) {
+  const W = el.clientWidth || 600, H = 180, m = { l: 44, r: 12, t: 8, b: 22 };
+  const pts = series.flatMap(s => s.data.filter(p => p[1] != null));
+  if (!el._init) {
+    el.innerHTML = `<div class="legend"></div><svg></svg><div class="tip"></div>`;
+    el._init = true;
+    const svg = $("svg", el);
+    svg.addEventListener("mousemove", ev => hover(el, ev));
+    svg.addEventListener("mouseleave", () => { $(".tip", el).style.display = "none"; const c = $(".xh", el); if (c) c.setAttribute("visibility", "hidden"); });
+  }
+  $(".legend", el).innerHTML = series.map(s => `<span><i class="${s.dash ? "dash" : ""}" style="background:${s.color};color:${s.color}"></i>${esc(s.name)}</span>`).join("");
+  const svg = $("svg", el);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  if (!pts.length) {
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" fill="var(--muted)" text-anchor="middle" font-size="13">${esc(opts.empty || "No data yet")}</text>`;
+    el._scale = null; return;
+  }
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x1 = Math.max(...xs), x0 = Math.min(Math.min(...xs), x1 - (opts.window || 120));
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (opts.zero) y0 = Math.min(0, y0);
+  if (y1 - y0 < (opts.minSpan || 1)) { const mid = (y0 + y1) / 2; y0 = opts.zero ? 0 : mid - (opts.minSpan || 1) / 2; y1 = y0 + (opts.minSpan || 1); }
+  const padY = (y1 - y0) * 0.08; y1 += padY; if (!opts.zero) y0 -= padY;
+  const X = x => m.l + (x - x0) / (x1 - x0 || 1) * (W - m.l - m.r);
+  const Y = y => H - m.b - (y - y0) / (y1 - y0 || 1) * (H - m.t - m.b);
+  let g = "";
+  for (const t of niceTicks(y0, y1, 4)) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)"/><text x="${m.l - 8}" y="${Y(t) + 4}" fill="var(--muted)" font-size="11" text-anchor="end" font-family="var(--mono)">${fmtTick(t)}</text>`;
+  for (let s = 0; s <= (x1 - x0); s += 30) { const x = X(x1 - s); g += `<text x="${x}" y="${H - 5}" fill="var(--muted)" font-size="11" text-anchor="middle">${s === 0 ? "now" : s + "s ago"}</text>`; }
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--axis)"/>`;
+  for (const band of (opts.bands || [])) g += `<rect x="${X(Math.max(band[0], x0))}" y="${m.t}" width="${Math.max(2, X(Math.min(band[1], x1)) - X(Math.max(band[0], x0)))}" height="${H - m.t - m.b}" fill="rgba(224,98,95,.12)"/>`;
+  for (const s of series) {
+    let d = "", pen = false;
+    for (const p of s.data) {
+      if (p[1] == null || p[0] < x0) { pen = false; continue; }
+      d += `${pen ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`; pen = true;
+    }
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""}/>`;
+  }
+  g += `<line class="xh" y1="${m.t}" y2="${H - m.b}" stroke="var(--text-2)" stroke-width="1" visibility="hidden"/>`;
+  svg.innerHTML = g;
+  el._scale = { X, Y, x0, x1, m, W, series, unit: opts.unit || "", digits: opts.digits ?? 1 };
+}
+function niceTicks(a, b, n) {
+  const span = b - a, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(k => k * mag).find(s => span / s <= n) || mag * 10;
+  const out = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) out.push(+v.toFixed(6)); return out;
+}
+const fmtTick = v => Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + "k" : (Math.round(v * 10) / 10).toString();
+function hover(el, ev) {
+  const s = el._scale; if (!s) return;
+  const svg = $("svg", el), r = svg.getBoundingClientRect();
+  const px = (ev.clientX - r.left) / r.width * s.W;
+  const t = s.x0 + (px - s.m.l) / (s.W - s.m.l - s.m.r) * (s.x1 - s.x0);
+  let best = null;
+  for (const p of s.series[0].data) if (!best || Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
+  if (!best) return;
+  const xh = $(".xh", el); xh.setAttribute("x1", s.X(best[0])); xh.setAttribute("x2", s.X(best[0])); xh.setAttribute("visibility", "visible");
+  const rows = s.series.map(se => { const p = se.data.find(q => q[0] === best[0]) || se.data.reduce((a, q) => !a || Math.abs(q[0] - best[0]) < Math.abs(a[0] - best[0]) ? q : a, null); return `<div><i style="display:inline-block;width:10px;height:2px;background:${se.color};vertical-align:middle;margin-right:6px"></i>${esc(se.name)} <b class="mono">${p && p[1] != null ? p[1].toFixed(s.digits) + s.unit : "—"}</b></div>`; }).join("");
+  const tip = $(".tip", el);
+  tip.innerHTML = `<div class="muted">${hms(best[0])}</div>${rows}`;
+  tip.style.display = "block";
+  const tx = s.X(best[0]) / s.W * r.width;
+  tip.style.left = Math.min(Math.max(0, tx + 12), r.width - tip.offsetWidth) + "px";
+  tip.style.top = "30px";
+}
+
+// --------------------------------------------------------- live state --
+let STATE = null;
+const ACTIVE_WINDOW_S = 10;
+
+function renderHeader(st) {
+  const mon = st.monitor;
+  let cls = "", txt = "";
+  if (!mon) { cls = ""; txt = "Viewing saved logs"; }
+  else if (mon.jammed) { cls = "critical soft-pulse"; txt = `Link blocked (test) · ${mon.jam_remaining_s.toFixed(0)} s left`; }
+  else if (mon.status === "error") { cls = "critical"; txt = "Can't reach the drone"; }
+  else if (mon.status !== "live") { cls = "warning soft-pulse"; txt = "Waiting for the drone…"; }
+  else if ((mon.link.heartbeat_age_s ?? 0) > 3) { cls = "critical soft-pulse"; txt = "Drone has gone quiet"; }
+  else { cls = "good"; txt = `Connected to drone ${mon.vehicle.sysid ?? ""}`; }
+  $("#link-pill").innerHTML = `<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
+  const a = st.alerts;
+  $("#chain-pill").innerHTML = a.chain_ok ? `<span class="dot good"></span><span>Alert log intact</span>` : `<span class="dot critical"></span><span>Alert log was altered</span>`;
+  const ac = $("#alert-count"); ac.textContent = a.total; ac.className = "count" + (a.total === 0 ? " zero" : "");
+  const bc = $("#bb-count"); bc.textContent = st.snapshot_count; bc.className = "count" + (st.snapshot_count === 0 ? " zero" : "");
+  // the actual files behind the app, like a file browser's sidebar
+  const f = st.files;
+  const cfgName = f.config ? f.config.split("/").pop() : "built-in defaults";
+  $("#side-files").innerHTML = `
+    <div class="side-file" data-goto="alerts" title="${esc(f.alert_log)}">${I(ICON.file)}<span class="fname">${esc(f.alert_log.split("/").pop())}</span><span class="fmeta">${a.total} ${a.total === 1 ? "line" : "lines"}</span></div>
+    ${f.blackbox_dir ? `<div class="side-file" data-goto="blackbox" title="${esc(f.blackbox_dir)}">${I(ICON.folder)}<span class="fname">${esc(f.blackbox_dir.split("/").pop())}/</span><span class="fmeta">${st.snapshot_count} ${st.snapshot_count === 1 ? "file" : "files"}</span></div>` : ""}
+    <div class="side-file" style="cursor:default" title="${esc(f.config || "No --config given")}">${I(ICON.gear)}<span class="fname" style="${f.config ? "" : "font-family:var(--sans);font-size:13px"}">${esc(cfgName)}</span><span class="fmeta">settings</span></div>`;
+  $("#status-items").textContent = `${a.total} ${a.total === 1 ? "alert" : "alerts"} · ${st.snapshot_count} incident ${st.snapshot_count === 1 ? "file" : "files"}` + (mon ? ` · ${mon.msg_count.toLocaleString()} messages checked` : " · read-only");
+}
+
+function renderBanner(st) {
+  const mon = st.monitor, b = $("#banner");
+  const now = st.server_time;
+  let active = [];
+  if (mon) for (const [k, d] of Object.entries(mon.detectors)) if (d.last_alert && now - d.last_alert < ACTIVE_WINDOW_S) active.push([k, d]);
+  const icon = (c, p) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  const iconAlert = icon("var(--critical)", '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>');
+  const iconOk = icon("var(--good)", '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>');
+  const iconIdle = icon("var(--muted)", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+  if (!mon) {
+    b.className = "banner idle";
+    const last = st.alerts.last;
+    b.innerHTML = `${iconIdle}<div><div class="title">Looking through saved logs</div><div class="sub">This window is read-only: it's showing what <code>sn1ff3r run</code> wrote to <span class="mono">${esc(st.files.alert_log)}</span>. ${last ? "The last alert was " + esc(dayLabel(last.time)) + "." : "No alerts have been written yet."}</div></div>`;
+  } else if (active.length) {
+    b.className = "banner alert";
+    const [, d] = active.sort((x, y) => y[1].last_alert - x[1].last_alert)[0];
+    const names = active.map(a => detName(a[0]));
+    b.innerHTML = `${iconAlert}<div><div class="title">Something looks off</div><div class="sub"><b>${esc(names.join(" and "))}</b> noticed something just now: ${esc(d.last_reason)}</div></div>`;
+  } else if (mon.status !== "live") {
+    b.className = "banner idle";
+    b.innerHTML = `${iconIdle}<div><div class="title">${mon.status === "error" ? "Can't reach the drone" : "Waiting to hear from the drone…"}</div><div class="sub">${esc(mon.error || "Listening on " + mon.connect + ". This clears as soon as the flight controller's heartbeat arrives.")}</div></div>`;
+  } else {
+    b.className = "banner clear";
+    b.innerHTML = `${iconOk}<div><div class="title">All quiet</div><div class="sub">Nothing unusual from drone ${esc(mon.vehicle.sysid ?? "")}. ${mon.msg_count.toLocaleString()} messages checked since this started ${ago(mon.uptime_s)} ago${mon.session_alerts ? `, with ${mon.session_alerts} ${mon.session_alerts === 1 ? "alert" : "alerts"} earlier` : ""}.</div></div>`;
+  }
+}
+
+function renderDetectors(st) {
+  const mon = st.monitor, now = st.server_time;
+  const byDet = st.alerts.by_detector;
+  const keys = ["check_gps_spoof", "check_gps_jamming", "check_dos", "check_command_injection", "check_telemetry_consistency"];
+  const rows = keys.map(k => {
+    const d = mon ? mon.detectors[k] : null;
+    const age = d && d.last_alert ? now - d.last_alert : null;
+    const state = age != null && age < ACTIVE_WINDOW_S ? "alert" : age != null && age < 120 ? "recent" : "clear";
+    const status = !mon ? `<span class="dot"></span> <span class="muted">Not running</span>`
+      : { alert: `<span class="dot critical"></span> Noticing something now`,
+          recent: `<span class="dot warning"></span> Noticed something ${agoWords(age)}`,
+          clear: `<span class="dot good"></span> Normal` }[state];
+    const last = d && d.last_reason ? d.last_reason : DET[k].desc;
+    return `<tr><td><div class="name-cell">${I(DET_ICON[k])}<div><div>${esc(DET[k].name)}</div><div class="muted" style="font-size:12.5px">${esc(last)}</div></div></div></td>
+      <td class="nowrap">${status}</td>
+      <td class="num hide-sm">${mon ? d.hits : "—"}</td>
+      <td class="num">${byDet[k] || 0}</td></tr>`;
+  }).join("");
+  $("#detectors").innerHTML = `<table class="list static"><thead><tr><th>Check</th><th>Status</th><th class="hide-sm" style="text-align:right">This session</th><th style="text-align:right">In log</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function kv(el, rows) { el.innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join(""); }
+
+function renderLive(st) {
+  const mon = st.monitor;
+  if (!mon) {
+    $("#l-rate").textContent = "—"; $("#l-hb").textContent = "—";
+    kv($("#link-kv"), [["Mode", "Read-only"]]); kv($("#veh-kv"), []);
+    lineChart($("#chart-rate"), [{ name: "Messages / s", color: "var(--series-1)", data: [] }], { empty: "Live charts appear when you run sn1ff3r gui" });
+    lineChart($("#chart-alt"), [{ name: "Altitude", color: "var(--series-1)", data: [] }], { empty: "Live charts appear when you run sn1ff3r gui" });
+  } else {
+    const L = mon.link, V = mon.vehicle;
+    $("#l-rate").textContent = fmt(L.rate_hz, 0);
+    const hb = L.heartbeat_age_s;
+    $("#l-hb").innerHTML = hb == null ? "—" : `<span style="color:${hb > 3 ? "var(--critical)" : "inherit"}">${hb.toFixed(1)} s</span>`;
+    kv($("#link-kv"), [
+      ["Listening on", `<span class="mono">${esc(mon.connect)}</span>`],
+      ["Usual rate", fmt(L.baseline_hz, 0, " / s")],
+      ["How unusual (z)", fmt(L.rate_z, 1)],
+      ["Messages checked", mon.msg_count.toLocaleString()],
+      ["Dropped by jam test", mon.dropped_by_jam.toLocaleString()],
+      ["Running for", ago(mon.uptime_s)],
+      ["Most common", mon.top_types.slice(0, 3).map(t => esc(t[0])).join(", ") || "—"],
+    ]);
+    $("#v-mode").textContent = V.mode || "—";
+    $("#v-armed").innerHTML = V.armed == null ? "—" : V.armed ? `Armed` : `<span class="dim">Disarmed</span>`;
+    const fix = { 0: "No GPS", 1: "No fix", 2: "2D fix", 3: "3D fix", 4: "DGPS", 5: "RTK float", 6: "RTK fixed" }[V.gps_fix] || (V.gps_fix ?? "—");
+    kv($("#veh-kv"), [
+      ["Type", esc(V.type ? V.type.charAt(0) + V.type.slice(1).toLowerCase() : "—")],
+      ["Position", V.lat != null ? `${V.lat.toFixed(6)}, ${V.lon.toFixed(6)}` : "—"],
+      ["Altitude", V.alt_msl != null ? `${fmt(V.alt_rel)} m above home <span class="muted">(${fmt(V.alt_msl)} m sea level)</span>` : "—"],
+      ["Ground speed", fmt(V.groundspeed, 1, " m/s")],
+      ["GPS", `${esc(fix)}, ${V.gps_sats ?? "—"} satellites`],
+      ["GPS vs estimate", fmt(V.gps_ekf_div_m, 1, " m apart")],
+      ["Battery", V.battery_v != null ? `${fmt(V.battery_v, 2)} V${V.battery_pct != null ? ", " + V.battery_pct + "%" : ""}` : "—"],
+    ]);
+    lineChart($("#chart-rate"), [
+      { name: "Messages per second", color: "var(--series-1)", data: mon.rate_history.map(r => [r[0], r[1]]) },
+      { name: "What it has learned is normal", color: "var(--series-2)", dash: true, data: mon.rate_history.map(r => [r[0], r[2]]) },
+    ], { zero: true, minSpan: 10, unit: " /s", digits: 0, window: 180, bands: alertBands(mon, "check_dos"), empty: "Waiting for messages…" });
+    lineChart($("#chart-alt"), [
+      { name: "Position report", color: "var(--series-1)", data: mon.alt_history.map(r => [r[0], r[1]]) },
+      { name: "Flight display (HUD)", color: "var(--series-2)", dash: true, data: mon.alt_history.map(r => [r[0], r[2]]) },
+    ], { minSpan: 10, unit: " m", window: 180, bands: alertBands(mon, "check_telemetry_consistency"), empty: "Waiting for a position…" });
+  }
+  const rec = st.alerts.recent;
+  $("#recent").innerHTML = rec.length ? rec.map(a => `<div class="row"><span class="mono muted">${hms(a.time)}</span><span class="imp ${sevOf(a.confidence)}" title="${SEV_LABEL[sevOf(a.confidence)]} importance"><span class="dot"></span></span><span><b style="font-weight:500">${esc(detName(a.detector))}</b> <span class="dim">— ${esc(a.reason)}</span>${a.repeats ? ` <span class="muted">(and ${a.repeats} more like it)</span>` : ""}</span></div>`).join("")
+    : `<div class="empty"><div class="big-t">Nothing to report</div>Alerts will show up here as they happen.</div>`;
+  renderBBLive(st);
+}
+
+// remember alert moments per detector so charts can shade them
+const bandMemory = {};
+function alertBands(mon, det) {
+  const d = mon.detectors[det]; const list = bandMemory[det] = bandMemory[det] || [];
+  if (d && d.last_alert) {
+    const last = list[list.length - 1];
+    if (last && d.last_alert - last[1] < 3) last[1] = Math.max(last[1], d.last_alert + 1);
+    else if (!last || d.last_alert > last[1]) list.push([d.last_alert - 1, d.last_alert + 1]);
+  }
+  while (list.length && list[0][1] < mon.now - 200) list.shift();
+  return list;
+}
+
+function renderBBLive(st) {
+  const mon = st.monitor, el = $("#bb-live"), n = $("#bb-rec-notice");
+  const b = mon && mon.blackbox;
+  const infoIcon = I('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>');
+  if (!b) {
+    el.innerHTML = `<div class="dim">${mon ? "The recorder is turned off for this session." : "Read-only: showing the incident files already saved."}</div><div style="margin-top:10px"><b>${st.snapshot_count}</b> <span class="muted">incident files in</span> <span class="mono">${esc(st.files.blackbox_dir || "—")}</span></div>`;
+    n.innerHTML = `${infoIcon}<span>${mon ? "The flight recorder is turned off for this session." : `Showing the incident files saved in <span class="mono">${esc(st.files.blackbox_dir)}</span>.`}</span>`;
+    return;
+  }
+  const fill = (100 * b.pre_buffer_fill / b.pre_buffer_size).toFixed(0);
+  el.innerHTML = (b.recording
+    ? `<div style="display:flex;gap:9px;align-items:center;font-weight:600"><span class="dot critical soft-pulse"></span>Recording an incident</div>
+       <dl class="kv" style="margin-top:10px">
+         <dt>File</dt><dd class="mono">${esc(b.incident_id)}.json</dd>
+         <dt>Started</dt><dd>${hms(b.incident_start)}</dd>
+         <dt>Things noticed</dt><dd>${b.alerts}</dd>
+         <dt>Messages saved</dt><dd>${b.before_count} before · ${b.during_count} during</dd>
+         <dt>Saves after</dt><dd>${fmt(b.closes_in_s, 0, " s")} of calm</dd>
+       </dl>`
+    : `<div style="display:flex;gap:9px;align-items:center;font-weight:600"><span class="dot good"></span>Standing by</div>
+       <div class="dim" style="margin:8px 0;font-size:13.5px">Keeping the last ${b.pre_buffer_size} messages in memory. If something happens, it saves them together with everything that follows into a sealed file.</div>
+       <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${fill}%;background:var(--series-1)"></div></div>
+       <div class="muted" style="font-size:12px;margin-top:4px">memory ${b.pre_buffer_fill} of ${b.pre_buffer_size} messages</div>`)
+    + `<div style="margin-top:12px;font-size:13.5px"><b>${st.snapshot_count}</b> <span class="muted">saved ${st.snapshot_count === 1 ? "incident" : "incidents"} ·</span> <a href="#" data-goto="blackbox">Open flight recorder</a></div>`;
+  n.innerHTML = b.recording
+    ? `<span class="dot critical soft-pulse" style="margin-top:6px"></span><span><b>Recording ${esc(b.incident_id)}.json</b>. ${b.alerts} ${b.alerts === 1 ? "thing" : "things"} noticed so far. It will be saved once things have been calm for ${fmt(b.closes_in_s, 0)} s.</span>`
+    : `${infoIcon}<span>Each file below is one incident: the messages from just before it started until things calmed down, sealed so any later edit can be detected. They're stored in <span class="mono">${esc(st.files.blackbox_dir)}</span>.</span>`;
+}
+
+// ------------------------------------------------------------ alerts ---
+let ALERTS = [], alertGen = 0, detFilter = new Set(), selAlert = null, freshFrom = Infinity;
+async function pollAlerts() {
+  try {
+    const r = await api(`/api/alerts?since=${ALERTS.length ? ALERTS[ALERTS.length - 1].index + 1 : 0}&gen=${alertGen}`);
+    if (r.generation !== alertGen) { ALERTS = []; alertGen = r.generation; }
+    if (r.alerts.length) {
+      if (ALERTS.length) freshFrom = Math.min(freshFrom, r.alerts[0].index);
+      ALERTS.push(...r.alerts);
+      if (activeTab === "alerts") renderAlerts();
+    }
+    const w = $("#chain-warning");
+    w.hidden = r.chain_ok;
+    if (!r.chain_ok) w.innerHTML = `${I(ICON.unlock)}<span><b>The alert log has been altered.</b> Entry #${r.broken_at}, or one before it, was edited, removed or reordered after it was written. Entries from there on are marked as not intact.</span>`;
+  } catch (e) {}
+}
+function filteredAlerts() {
+  const q = $("#a-search").value.trim().toLowerCase(), sev = $("#a-sev").value;
+  let list = ALERTS.filter(a =>
+    (!detFilter.size || detFilter.has(a.detector)) &&
+    (!sev || sevOf(a.confidence) === sev) &&
+    (!q || [a.reason, a.detector, detName(a.detector), a.msg_type, a.src_system].join(" ").toLowerCase().includes(q)));
+  if ($("#a-follow").checked) list = list.slice().reverse();
+  return list;
+}
+function renderAlerts() {
+  const dets = [...new Set(ALERTS.map(a => a.detector))];
+  $("#a-chips").innerHTML = dets.length ? `<span class="muted" style="font-size:12.5px">Show only:</span>` + dets.map(d => `<button class="chip ${detFilter.has(d) ? "on" : ""}" data-det="${esc(d)}">${esc(detName(d))} · ${ALERTS.filter(a => a.detector === d).length}</button>`).join("") : "";
+  const list = filteredAlerts().slice(0, 1500);
+  $("#a-empty").style.display = list.length ? "none" : "block";
+  if (!list.length && ALERTS.length) $("#a-empty").innerHTML = `<div class="big-t">No matches</div>Nothing matches your search or filters.`;
+  $("#a-body").innerHTML = list.map(a => `<tr data-i="${a.index}" class="${a.index === selAlert ? "sel" : ""} ${a.index >= freshFrom ? "fresh" : ""}">
+    <td class="mono nowrap">${hms(a.time)}${isToday(a.time) ? "" : `<span class="sub-date">${esc(dateTime(a.time).slice(0, 10))}</span>`}</td>
+    <td class="nowrap">${sevHtml(a.confidence)}</td>
+    <td class="nowrap"><div class="name-cell">${I(DET_ICON[a.detector] || ICON.file)}<span>${esc(detName(a.detector))}</span></div></td>
+    <td class="reason">${esc(a.reason)}</td>
+    <td class="mono hide-sm">${esc(a.msg_type || "—")}</td>
+    <td class="mono hide-sm">${a.src_system != null ? esc(a.src_system) + (a.src_component != null ? ":" + esc(a.src_component) : "") : "—"}</td>
+    <td class="num">${a.repeats || ""}</td>
+    <td title="${a.chain_ok ? "Unchanged since it was written" : "Altered after it was written"}" style="color:${a.chain_ok ? "var(--good)" : "var(--critical)"}">${I(a.chain_ok ? ICON.lock : ICON.unlock)}</td></tr>`).join("");
+  freshFrom = Infinity;
+}
+$("#a-chips").addEventListener("click", e => { const c = e.target.closest("[data-det]"); if (!c) return; const d = c.dataset.det; detFilter.has(d) ? detFilter.delete(d) : detFilter.add(d); renderAlerts(); });
+["#a-search", "#a-sev", "#a-follow"].forEach(s => $(s).addEventListener("input", renderAlerts));
+$("#a-body").addEventListener("click", e => {
+  const tr = e.target.closest("tr"); if (!tr) return;
+  selAlert = +tr.dataset.i; const a = ALERTS.find(x => x.index === selAlert);
+  const d = $("#a-detail"); d.hidden = false;
+  d.innerHTML = `<h2>${I(DET_ICON[a.detector] || ICON.file)}Alert #${a.index} <span class="right">${sevHtml(a.confidence)} importance</span></h2>
+    <div style="font-size:15px;margin-bottom:12px"><b style="font-weight:600">${esc(detName(a.detector))}</b> <span class="dim">— ${esc(a.reason)}</span></div>
+    <dl class="kv" style="max-width:720px">
+      <dt>Noticed at</dt><dd>${esc(dateTime(a.time))}</dd>
+      <dt>Written to log at</dt><dd>${esc(dateTime(a.logged_at))}</dd>
+      <dt>Confidence</dt><dd>${Math.round(a.confidence * 100)}%</dd>
+      <dt>Message type</dt><dd class="mono">${esc(a.msg_type || "—")}</dd>
+      <dt>Sent by (system:component)</dt><dd class="mono">${esc(a.src_system ?? "—")}:${esc(a.src_component ?? "—")}</dd>
+      <dt>Similar ones folded in</dt><dd>${a.repeats}</dd>
+      <dt>Intact</dt><dd>${a.chain_ok ? "Yes, unchanged since it was written" : "No, altered after it was written"}</dd>
+      <dt>Fingerprint</dt><dd class="hash">${esc(a.hash)}</dd>
+      <dt>Previous fingerprint</dt><dd class="hash">${esc(a.prev_hash)}</dd>
+    </dl>`;
+  renderAlerts();
+  d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+$("#a-export").addEventListener("click", () => {
+  const rows = [["time_iso", "detector", "confidence", "severity", "reason", "msg_type", "src_system", "src_component", "repeats", "chain_ok", "hash"]];
+  for (const a of filteredAlerts()) rows.push([new Date(a.time * 1000).toISOString(), a.detector, a.confidence, sevOf(a.confidence), a.reason, a.msg_type, a.src_system, a.src_component, a.repeats, a.chain_ok, a.hash]);
+  const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const l = document.createElement("a"); l.href = url; l.download = "ids_alerts.csv"; l.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+// ---------------------------------------------------------- black box --
+let SNAPS = [], selSnap = null;
+async function loadBlackbox() {
+  try { const r = await api("/api/blackbox"); SNAPS = r.snapshots; renderSnapList(); } catch (e) {}
+}
+const docColor = s => s.unreadable || (!s.verified && !s.partial) ? "#b5504e" : s.partial ? "#a88132" : "#3b72b8";
+function renderSnapList() {
+  $("#bb-total").textContent = `${SNAPS.length} ${SNAPS.length === 1 ? "file" : "files"}`;
+  $("#bb-list").innerHTML = SNAPS.length ? SNAPS.map(s => {
+    const dets = Object.keys(s.detectors || {}).map(detName).join(", ");
+    const tag = s.unreadable ? '<span class="tag bad">can\'t be opened</span>'
+      : s.partial ? '<span class="tag part">unfinished</span>'
+      : s.verified ? `<span class="tag ok">${I(ICON.lock).replace('class="i"', 'class="i" style="width:11px;height:11px"')}sealed</span>`
+      : '<span class="tag bad">altered</span>';
+    return `<div class="inc ${s.id === selSnap ? "sel" : ""}" data-id="${esc(s.id)}">
+      ${DOC(docColor(s))}
+      <div style="min-width:0">
+        <div class="t">${esc(s.file)}</div>
+        <div class="s">${esc(dets || "—")}</div>
+        <div class="m"><span>${esc(dayLabel(s.triggered_at))}</span><span>${fsize(s.size_bytes)}</span>${tag}</div>
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty"><div class="big-t">This folder is empty</div>An incident file is saved here each time something is noticed and then calms down.</div>`;
+}
+$("#bb-list").addEventListener("click", async e => {
+  const c = e.target.closest("[data-id]"); if (!c) return;
+  selSnap = c.dataset.id; renderSnapList(); setPath(selSnap + ".json");
+  $("#bb-detail").innerHTML = `<div class="empty">Opening…</div>`;
+  try { renderSnapDetail(await api("/api/blackbox/" + encodeURIComponent(selSnap))); }
+  catch (err) { $("#bb-detail").innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+});
+function typeBars(tc) {
+  const types = [...new Set([...Object.keys(tc.before), ...Object.keys(tc.during)])];
+  types.sort((a, b) => ((tc.during[b] || 0) + (tc.before[b] || 0)) - ((tc.during[a] || 0) + (tc.before[a] || 0)));
+  const max = Math.max(1, ...types.map(t => (tc.before[t] || 0) + (tc.during[t] || 0)));
+  return `<div class="chart"><div class="legend"><span><i style="background:var(--text-2)"></i>Before it started</span><span><i style="background:var(--series-1)"></i>During and after</span></div></div>
+    <div class="bars">${types.slice(0, 14).map(t => {
+      const b = tc.before[t] || 0, d = tc.during[t] || 0;
+      return `<div class="bar" title="${esc(t)}: ${b} before, ${d} during/after"><span class="mono" style="overflow:hidden;text-overflow:ellipsis">${esc(t)}</span>
+        <div class="track">${b ? `<span style="width:${100 * b / max}%;background:var(--text-2)"></span>` : ""}${d ? `<span style="width:${100 * d / max}%;background:var(--series-1)"></span>` : ""}</div>
+        <span class="n">${b} / ${d}</span></div>`; }).join("")}</div>`;
+}
+let SNAP_DETAIL = null;
+function renderSnapDetail(d) {
+  SNAP_DETAIL = d;
+  if (d.unreadable) { $("#bb-detail").innerHTML = `<div class="empty"><div class="big-t">Can't open this file</div>It isn't valid JSON any more.</div>`; return; }
+  const alerts = d.trigger_alerts;
+  const meta = SNAPS.find(s => s.id === d.id) || {};
+  const seal = d.verified
+    ? `<span class="tag ok">${I(ICON.lock).replace('class="i"', 'class="i" style="width:11px;height:11px"')}Sealed: unchanged since it was saved</span>`
+    : `<span class="tag bad">${I(ICON.unlock).replace('class="i"', 'class="i" style="width:11px;height:11px"')}Altered after it was saved</span>`;
+  const byDet = {};
+  for (const a of alerts) { const k = a.detector; (byDet[k] = byDet[k] || []).push(a); }
+  $("#bb-detail").innerHTML = `
+    <div class="preview-head">
+      ${DOC(docColor({ verified: d.verified, partial: d.partial })).replace('class="doc"', 'class="doc" style="width:44px;height:54px"')}
+      <div style="min-width:0"><div class="fn">${esc(d.id)}.json</div><div class="fs">Incident record · ${fsize(meta.size_bytes)} · saved ${esc(dayLabel(d.closed_at || d.triggered_at))}</div><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${seal}${d.partial ? '<span class="tag part">Unfinished: saved when it started, never closed normally</span>' : ""}</div></div>
+      <div class="actions"><a class="btn" href="/api/blackbox/${encodeURIComponent(d.id)}/raw" style="text-decoration:none;color:inherit">Download</a></div>
+    </div>
+    ${d.note ? `<div class="notice">${esc(d.note)}</div>` : ""}
+    <dl class="kv" style="max-width:520px">
+      <dt>Started</dt><dd>${esc(dateTime(d.triggered_at))}</dd>
+      <dt>Lasted</dt><dd>${d.closed_at ? (d.closed_at - d.triggered_at).toFixed(1) + " s" : "—"}</dd>
+      <dt>Things noticed</dt><dd>${alerts.length}</dd>
+      <dt>Messages saved</dt><dd>${d.before_count ?? 0} before · ${d.during_count ?? "—"} during and after</dd>
+    </dl>
+    <div class="section-title">What was noticed</div>
+    <div class="feed">${Object.entries(byDet).map(([k, list]) => `<div class="row" style="grid-template-columns:22px minmax(0,1fr)"><span class="imp ${sevOf(Math.max(...list.map(a => a.confidence)))}"><span class="dot"></span></span><span><b style="font-weight:500">${esc(detName(k))}</b> <span class="muted">${list.length}× between ${hms(list[0].time)} and ${hms(list[list.length - 1].time)}</span><br><span class="dim" style="font-size:13px">${esc(list[0].reason)}</span></span></div>`).join("")}</div>
+    <div class="section-title">Which messages were saved <span class="right">before / during</span></div>
+    ${typeBars(d.type_counts)}
+    <div class="section-title">Message by message <span class="right">${d.timeline_truncated ? "showing the part nearest the start · " : ""}click a row to open it</span></div>
+    <div class="toolbar"><input type="search" id="tl-search" placeholder="Filter by message type…"><label class="dim" style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="tl-alerts"> Only where something was noticed</label></div>
+    <div class="table-wrap" style="max-height:400px"><table class="list"><thead><tr><th>Time from start</th><th>When</th><th>Message</th><th>From</th><th>Noticed</th></tr></thead><tbody id="tl-body"></tbody></table></div>
+    <div id="tl-pkt" style="margin-top:12px"></div>
+    <div class="muted hash" style="margin-top:12px">Fingerprint (SHA-256): ${esc(d.sha256)}</div>`;
+  $("#tl-search").addEventListener("input", renderTimeline);
+  $("#tl-alerts").addEventListener("input", renderTimeline);
+  $("#tl-body").addEventListener("click", e => {
+    const tr = e.target.closest("tr"); if (!tr) return;
+    $$("#tl-body tr.sel").forEach(r => r.classList.remove("sel")); tr.classList.add("sel");
+    const row = SNAP_DETAIL.timeline[+tr.dataset.i];
+    $("#tl-pkt").innerHTML = `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))"><div><div class="section-title" style="margin-top:0">The message · <span class="mono">${esc(row.type)}</span></div><pre class="json">${esc(JSON.stringify(row.msg, null, 2))}</pre></div><div><div class="section-title" style="margin-top:0">What the checks measured</div><pre class="json">${esc(JSON.stringify(row.features, null, 2))}</pre></div></div>`;
+  });
+  renderTimeline();
+}
+function renderTimeline() {
+  const d = SNAP_DETAIL, q = $("#tl-search").value.trim().toUpperCase(), only = $("#tl-alerts").checked;
+  const rows = [];
+  d.timeline.forEach((r, i) => { if ((!q || r.type.includes(q)) && (!only || r.alerts)) rows.push([r, i]); });
+  $("#tl-body").innerHTML = rows.slice(0, 2000).map(([r, i]) => `<tr data-i="${i}" class="${r.alerts ? "alerted" : ""}">
+    <td class="num nowrap mono">${r.rel >= 0 ? "+" : ""}${r.rel.toFixed(3)} s</td>
+    <td><span class="phase ${r.phase}">${r.phase === "before" ? "before" : "during"}</span></td>
+    <td class="mono">${esc(r.type)}</td><td class="mono">${esc(r.src ?? "—")}</td>
+    <td>${r.alerts ? r.alerts.map(a => `<span class="imp critical"><span class="dot"></span>${esc(DET[a] ? DET[a].short : a)}</span>`).join(" ") : ""}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="muted">Nothing matches.</td></tr>`;
+}
+
+// --------------------------------------------------------- attack lab --
+const ATTACKS = [
+  { kind: "gps_spoof", title: "Fake the GPS position", icon: ICON.gps, expect: "GPS Spoofing", sitl: true,
+    desc: "Nudges the simulator's GPS receiver off the real position for a while, then puts it back, like someone broadcasting fake GPS signals.",
+    fields: [["offset_deg", "Shift (degrees)", 0.001, 0.0001], ["duration_s", "For (seconds)", 15, 1]] },
+  { kind: "jam", title: "Block the radio link", icon: ICON.jam, expect: "Link Jamming / Flooding",
+    desc: "Ignores everything from the drone for a few seconds, so its heartbeat goes silent. From the ground this looks exactly like jamming.",
+    fields: [["duration_s", "For (seconds)", 8, 1]] },
+  { kind: "dos", title: "Flood the link", icon: ICON.flood, expect: "Link Jamming / Flooding", inject: true,
+    desc: "A stranger sends a burst of junk messages, far more than the link normally carries.",
+    fields: [["duration_s", "For (seconds)", 3, 1], ["rate_hz", "Messages / s", 1500, 100]] },
+  { kind: "command_injection", title: "Send a rogue command", icon: ICON.cmd, expect: "Command Injection", inject: true,
+    desc: "Someone who isn't trusted tells the drone to switch to GUIDED mode.",
+    fields: [["src_sysid", "Sender ID", 99, 1]] },
+  { kind: "telemetry_forgery", title: "Fake the altitude", icon: ICON.tele, expect: "Telemetry Tampering", inject: true,
+    desc: "Pretends to be the drone and reports the wrong altitude, so its two altitude reports stop agreeing.",
+    fields: [["offset_m", "Add (metres)", 150, 10]] },
+];
+function renderAttackCards() {
+  $("#atk-cards").innerHTML = ATTACKS.map(a => `<div class="atk" data-kind="${a.kind}">
+      ${I(a.icon)}
+      <div style="min-width:0">
+        <h3>${esc(a.title)}<span class="running" hidden>● running</span></h3>
+        <div class="expect">Should be noticed by <span class="dim">${esc(a.expect)}</span>${a.sitl ? " · needs the simulator's second output" : ""}</div>
+        <p>${esc(a.desc)}</p>
+        <div class="fields">${a.fields.map(f => `<label class="field">${esc(f[1])}<input type="number" name="${f[0]}" value="${f[2]}" step="${f[3]}"></label>`).join("")}</div>
+      </div>
+      <div class="go"><button class="btn primary launch">Run</button></div>
+    </div>`).join("") + `<div class="atk" data-kind="params">
+      ${I(ICON.params)}
+      <div style="min-width:0">
+        <h3>Check the drone's settings<span class="running" hidden>● working</span></h3>
+        <div class="expect">Settings Integrity · needs the simulator's second output</div>
+        <p>Save a trusted copy of all the drone's settings, then check later whether anything changed. To try it, change a setting in MAVProxy (for example <code>param set FENCE_ENABLE 1</code>) between the two steps.</p>
+        <div id="param-result" class="dim" style="font-size:13.5px"></div>
+      </div>
+      <div class="go"><button class="btn" data-p="param_baseline">Save trusted copy</button><button class="btn primary" data-p="param_check">Check now</button></div>
+    </div>`;
+}
+renderAttackCards();
+$("#atk-cards").addEventListener("click", async e => {
+  const card = e.target.closest(".atk"); if (!card) return;
+  let kind = null, options = {};
+  if (e.target.closest(".launch")) {
+    kind = card.dataset.kind;
+    $$("input", card).forEach(i => options[i.name] = parseFloat(i.value));
+  } else if (e.target.closest("[data-p]")) kind = e.target.closest("[data-p]").dataset.p;
+  if (!kind) return;
+  try { await api("/api/attack", { kind, options }); refresh(); }
+  catch (err) { alertLog(err.message); }
+});
+$("#atk-stop").addEventListener("click", () => api("/api/attack/stop", {}).then(refresh).catch(err => alertLog(err.message)));
+let localErrors = [];
+function alertLog(msg) { localErrors.unshift({ time: Date.now() / 1000, text: msg, level: "error" }); refresh(); }
+function renderAttacks(st) {
+  const A = st.attacks;
+  const dis = $("#atk-disabled");
+  if (!A.live) { dis.hidden = false; dis.innerHTML = `${I('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>')}<span><b>Testing isn't available in read-only mode.</b> Start the live app with <code>sn1ff3r gui --connect udpin:127.0.0.1:14560</code>.</span>`; }
+  else if (!A.inject) { dis.hidden = false; dis.innerHTML = `${I('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>')}<span>The IDS isn't listening on a network port, so the flood, rogue command and fake altitude tests can't reach it. GPS spoofing, link blocking and the settings check still work.</span>`; }
+  else dis.hidden = true;
+  $("#sitl-port").textContent = A.sitl_port; $("#ids-port").textContent = A.ids_target || "—";
+  for (const card of $$("#atk-cards .atk")) {
+    const k = card.dataset.kind, def = ATTACKS.find(a => a.kind === k);
+    const running = k === "params" ? ("param_baseline" in A.running || "param_check" in A.running) : k in A.running;
+    $(".running", card).hidden = !running;
+    $$("button", card).forEach(b => b.disabled = !A.live || running || (def && def.inject && !A.inject));
+  }
+  const pr = $("#param-result");
+  if (A.param_progress) pr.innerHTML = `Reading settings from the drone… ${A.param_progress.received} of ${A.param_progress.total ?? "?"}`;
+  else if (A.last_param_check) {
+    const r = A.last_param_check;
+    pr.innerHTML = r.ok ? `<span class="imp" style="color:var(--good)"><span class="dot good"></span>Nothing changed</span> <span class="muted">· all ${r.checked} settings match the trusted copy (${esc(hms(r.time))})</span>`
+      : `<span class="imp critical"><span class="dot"></span>${r.changes.length} ${r.changes.length === 1 ? "setting has" : "settings have"} changed</span> <span class="muted">(${esc(hms(r.time))})</span>
+         <table class="list static" style="margin-top:8px;max-width:460px"><thead><tr><th>Setting</th><th style="text-align:right">Was</th><th style="text-align:right">Now</th></tr></thead><tbody>${r.changes.slice(0, 12).map(c => `<tr><td class="mono">${esc(c.name)}</td><td class="num">${c.baseline ?? "—"}</td><td class="num">${c.current ?? "—"}</td></tr>`).join("")}</tbody></table>`;
+  } else pr.innerHTML = `<span class="muted">Not checked yet this session.</span>`;
+  const log = [...localErrors, ...A.log].sort((a, b) => b.time - a.time).slice(0, 80);
+  $("#atk-log").innerHTML = log.length ? log.map(l => `<div class="${l.level === "error" ? "error" : ""}"><span class="muted">${hms(l.time)}</span>  ${esc(l.text)}</div>`).join("") : `<div class="muted">Nothing has been run yet.</div>`;
+}
+
+// -------------------------------------------------------------- loop ---
+let refreshing = false;
+async function refresh() {
+  if (refreshing) return; refreshing = true;
+  try {
+    const st = await api("/api/state");
+    STATE = st;
+    renderHeader(st); renderBanner(st); renderDetectors(st); renderLive(st); renderAttacks(st);
+    if (activeTab === "blackbox" && st.snapshot_count !== SNAPS.length) loadBlackbox();
+  } catch (e) {
+    $("#link-pill").innerHTML = `<span class="dot critical"></span><span>Lost contact with the app</span>`;
+  } finally { refreshing = false; }
+}
+setInterval(() => { $("#clock").textContent = hms(Date.now() / 1000); }, 500);
+setInterval(refresh, 1000);
+setInterval(pollAlerts, 1500);
+setInterval(() => { if (activeTab === "blackbox") loadBlackbox(); }, 4000);
+window.addEventListener("resize", () => STATE && renderLive(STATE));
+setPath();
+refresh(); pollAlerts();
+try { const t = localStorage.getItem("ids-tab"); if (t && $("#tab-" + t)) showTab(t); } catch (e) {}
+</script>
+</body>
+</html>

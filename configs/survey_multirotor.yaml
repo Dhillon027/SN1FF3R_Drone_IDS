@@ -1,0 +1,21 @@
+# Profile: slow survey/mapping multirotor
+# Tighter speed cap since these fly slowly and deliberately -- a smaller
+# jump is already suspicious. Slightly more tolerant altitude check since
+# survey flights often hold very precise, low relative altitudes.
+
+max_plausible_speed_mps: 15.0
+gps_zscore_threshold: 3.5
+
+heartbeat_timeout_s: 3.0
+flood_zscore_threshold: 5.0
+flood_rate_ratio: 3.0
+
+authorized_source_ids: [255]
+max_seq_gap: 5
+
+alt_tolerance_m: 10.0
+
+min_confidence: 0.0
+
+blackbox_pre_buffer: 200
+blackbox_post_window_s: 5.0

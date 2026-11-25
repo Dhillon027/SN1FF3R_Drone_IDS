@@ -1,0 +1,22 @@
+# Profile: fixed-wing
+# Much higher plausible speed cap -- a fixed-wing cruising at 25-30 m/s
+# would trip the default multirotor cap constantly. Looser altitude
+# tolerance too, since fixed-wing barometric readings are noisier at
+# higher airspeeds.
+
+max_plausible_speed_mps: 60.0
+gps_zscore_threshold: 4.5
+
+heartbeat_timeout_s: 4.0
+flood_zscore_threshold: 5.0
+flood_rate_ratio: 3.0
+
+authorized_source_ids: [255]
+max_seq_gap: 8
+
+alt_tolerance_m: 25.0
+
+min_confidence: 0.0
+
+blackbox_pre_buffer: 300
+blackbox_post_window_s: 8.0
